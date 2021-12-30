@@ -10,5 +10,6 @@ import java.time.LocalDateTime;
 public class ImageDto {
     private Long UserId;
     private MultipartFile file;
-    private LocalDateTime receiveDateTime ;
+    private LocalDateTime receiveDateTime;
+    private Boolean checkIsExistsInDB;
 }

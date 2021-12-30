@@ -6,11 +6,12 @@ import com.clothes.recognition.image.model.dto.ImageDto;
 import com.clothes.recognition.image.model.enums.Extension;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.EnumUtils;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.ByteBuffer;
 
@@ -50,15 +51,30 @@ public class FileHelper {
         try {
             return org.apache.commons.codec.digest.DigestUtils.md5Hex(file.getInputStream());
         } catch (IOException e) {
-            log.error("filed to getMD5Sum ".concat(e.getMessage()));
+            log.error("failed to getMD5Sum ".concat(e.getMessage()));
         }
         throw new ConvertImageException("getMD5Sum failed");
     }
 
     public static void checkExtension(String originalFileName) {
         final String extension = FilenameUtils.getExtension(originalFileName);
-        if (extension != null && EnumUtils.isValidEnum(Extension.class, extension.toUpperCase())) {
-            throw new IllegalStateException("file type invalid, correct types: " + Extension.values());
+        for (Extension c : Extension.values()) {
+            if (c.name().equals(extension.toUpperCase())) {
+                return;
+            }
         }
+
+        throw new IllegalStateException("file type invalid, correct types: " + Extension.values());
+    }
+
+
+    public static BufferedImage multipartFileToImage(MultipartFile file) {
+        try {
+            return ImageIO.read(file.getInputStream());
+        } catch (IOException e) {
+            log.error("filed to getMD5Sum ".concat(e.getMessage()));
+        }
+
+        throw new IllegalStateException("Failed to convert to BufferedImage");
     }
 }

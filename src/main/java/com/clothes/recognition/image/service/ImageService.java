@@ -1,5 +1,6 @@
 package com.clothes.recognition.image.service;
 
+import com.amazonaws.services.rekognition.model.BoundingBox;
 import com.amazonaws.services.rekognition.model.DetectLabelsResult;
 import com.amazonaws.services.rekognition.model.Instance;
 import com.amazonaws.services.rekognition.model.Label;
@@ -12,9 +13,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.clothes.recognition.image.utilities.FileHelper.multipartFileToImage;
 
 @Slf4j
 @Service
@@ -36,9 +44,12 @@ public class ImageService {
     }
 
     public String detectAndSaveImage(ImageDto imageDto) {
-
-        final String md5Sum = FileHelper.getMD5Sum(imageDto.getFile());
-        final Long idByMd5Sum = imageRepository.getIdByMd5Sum(md5Sum);
+        Long idByMd5Sum = null;
+        String md5Sum = null;
+        if (imageDto.getCheckIsExistsInDB()) {
+            md5Sum = FileHelper.getMD5Sum(imageDto.getFile());
+            idByMd5Sum = imageRepository.getIdByMd5Sum(md5Sum);
+        }
         if (idByMd5Sum == null) {
             return startRecognizeProcessForNewImage(imageDto, md5Sum);
         } else {
@@ -48,22 +59,34 @@ public class ImageService {
 
     public String startRecognizeProcessForNewImage(ImageDto imageDto, String md5Sum) {
         List<Label> labels = amazonService.detectImage(imageDto);
-        getImagePosition(getLabelToUsed(labels));
+        getImagePosition(getLabelToUsed(labels), multipartFileToImage(imageDto.getFile()));
         saveImageData(imageDto, FileHelper.getFileName(imageDto), labels, md5Sum, getLabelToUsed(labels));
         return imageResultService.getLabelInUseForImage(labels.stream().map(label -> label.getName()).collect(Collectors.toSet()));
     }
 
-    private void getImagePosition(Label labelToUsed) {
+    private void getImagePosition(Label labelToUsed, BufferedImage bufferedImage) {
         if (labelToUsed == null) {
             return;
         }
-        Instance instance = labelToUsed.getInstances().stream().filter(el -> el.getBoundingBox()!= null).findFirst().orElse(null);
-        if(instance == null) {
+        Instance instance = labelToUsed.getInstances().stream().filter(el -> el.getBoundingBox() != null).findFirst().orElse(null);
+        if (instance == null) {
             return;
         }
-       // instance.
-    }
+        BoundingBox boundingBox = instance.getBoundingBox();
+        Float left = bufferedImage.getWidth() * boundingBox.getLeft();
+        Float top = bufferedImage.getHeight() * boundingBox.getTop();
+        Float clotheWidth = bufferedImage.getWidth() * boundingBox.getWidth();
+        Float clotheHeight = bufferedImage.getHeight() * boundingBox.getHeight();
 
+        BufferedImage croppedImage = bufferedImage.getSubimage(
+                left.intValue(),
+                top.intValue(),
+                clotheWidth.intValue(),
+                clotheHeight.intValue()
+        );
+
+        Color pixel = new Color(croppedImage.getRGB(clotheWidth.intValue() / 2, (int) (clotheHeight.intValue() * 0.5)));
+    }
 
     private Label getLabelToUsed(List<Label> labels) {
         return labels.stream().filter(el -> !el.getInstances().isEmpty() && el.getInstances().get(0).getBoundingBox() != null).findFirst().orElse(null);

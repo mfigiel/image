@@ -7,6 +7,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class ImageMapper {
     public ImageDto map(ImageApi image) {
-        return new ImageDto(image.getUserId(), image.getFile(), image.getReceiveDateTime());
+        return new ImageDto(image.getUserId(), image.getFile(), image.getReceiveDateTime(), image.getCheckIsExistsInDB());
     }
 }

@@ -17,4 +17,6 @@ public class ImageApi {
     private MultipartFile file;
     @JsonIgnore
     private LocalDateTime receiveDateTime = now();
+
+    private Boolean checkIsExistsInDB;
 }
